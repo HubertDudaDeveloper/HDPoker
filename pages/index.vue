@@ -35,12 +35,21 @@
 import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { usePokerStore } from '@/service/PokerService';
+import { useWebSocket } from '@vueuse/core'
 
 export interface User {
     id: string;
     name: string;
     points: number | string;
 }
+const { status, data, send, open, close } = useWebSocket('wss://ogarniamdiete.pl:8443', {
+
+    heartbeat: true,
+});
+
+watch(data, (newValue) => {
+    console.log(newValue);
+})
 
 const pokerStore = usePokerStore();
 
@@ -48,7 +57,7 @@ const me = ref<User>({name: 'Jan', id: '1', points: 0});
 
 const show = ref(false);
 
-const room = storeToRefs(pokerStore);
+const room = '';
 
 const { state: pokerState } = storeToRefs(pokerStore)
 
@@ -67,6 +76,10 @@ const handleClick = (card: number | string | undefined) => {
     if (!card) {
         return;
     }
+
+    me.value.points = card;
+    open()
+    send(`${JSON.stringify(me.value)}`);
 
     me.value.points = card;
     const meUser = usersCollection.value.find(user => user.id === me.value.id);
