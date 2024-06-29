@@ -35,21 +35,18 @@
 import { ref, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { usePokerStore } from '@/service/PokerService';
-import { useWebSocket } from '@vueuse/core'
+
 
 export interface User {
     id: string;
     name: string;
     points: number | string;
 }
-const { status, data, send, open, close } = useWebSocket('wss://ogarniamdiete.pl:8443', {
 
-    heartbeat: true,
-});
+let ws: WebSocket;
 
-watch(data, (newValue) => {
-    console.log(newValue);
-})
+const isOpen = () => ws.readyState === ws.OPEN
+
 
 const pokerStore = usePokerStore();
 
@@ -78,13 +75,44 @@ const handleClick = (card: number | string | undefined) => {
     }
 
     me.value.points = card;
-    open()
-    send(`${JSON.stringify(me.value)}`);
+
+    ws.OPEN
+    ws.send(`${JSON.stringify(me.value)}`);
 
     me.value.points = card;
     const meUser = usersCollection.value.find(user => user.id === me.value.id);
     meUser && (meUser.points = card);
 }
+
+onMounted(() => {
+    ws = new WebSocket('wss://ogarniamdiete.pl:8443')
+
+    ws.onopen = (event) => {
+        console.log(event)
+        console.log('connected')
+    }
+
+    ws.onclose = (event) => {
+        console.log(event)
+        ws.send('ping')
+        console.log('disconnected')
+    }
+
+    ws.onmessage = (event) => {
+        console.log(event.data)
+        if (event.data === 'pong') {
+            ws.send('ping');
+        } else {
+            const data = JSON.parse(event.data);
+            if (data.type === 'users') {
+                usersCollection.value = data.users;
+                ws.send('ping');
+            }
+        }
+        
+    }
+}) 
+
 </script>
 
 <style lang="scss">
