@@ -1,41 +1,34 @@
 <template>
-    <div class="container">
-        <div class="room-column">
-        <h1>Poker</h1>
-        <p class="room">Pokój: <input v-model="room"/></p>
-        <div class="cards">
-            <span v-for="(card, index) in cards" class="card" @click="() => handleClick(card)">
-                {{ card }}
-            </span>
-        </div>
-        <template v-if="show">
-            {{ summary }}
-        </template> 
-    </div>
-    <div class="people-column">
-        <h2>Gracze</h2>
-        <button class="show-btn" @click="show = !show">Odkryj</button>
-        <div class="people">
-            <p v-for="(user, index) in usersCollection" :key="`${user.name} ${index}`">
-                {{ user.name }}: 
-                <template v-if="user.points">
-                    <template v-if="show">
-                        {{ user.points }}
-                    </template>
-                    <template v-else>
-                        Gotowy
-                    </template>
-                </template>
-            </p>
-        </div>
-    </div>
+    <div>
+        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom()" @joinRoom="handleCreateRoom()"/>
+        <RoomView v-else :ws="ws"/>
     </div>
 </template>
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import { storeToRefs } from 'pinia';
-import { usePokerStore } from '@/service/PokerService';
 
+<script setup lang="ts">
+const isAuthorised = ref(false);
+
+const isJsonString = (str: string) => {
+  try {
+      JSON.parse(str);
+  } catch (e) {
+      return false;
+  }
+  return true;
+}
+
+let ws: WebSocket;
+
+enum MessageType {
+    INIT = 'init', //stwórz pokój
+    VOTE = 'vote', //zagłosuj w pokoju
+    RESET = 'reset', //zresetuj głosy w pokoju
+    JOIN = 'join', //dołącz do pokoju
+    LEAVE = 'leave', //opuść pokój
+    MESSAGE = 'message', //wyslij wiadomość w pokoju
+    TASK = 'task', // ustaw/usuń/edytuj task w pokoju
+    REVEAL = 'reveal', // odkryj głosy w pokoju  
+}
 
 export interface User {
     id: string;
@@ -43,134 +36,60 @@ export interface User {
     points: number | string;
 }
 
-let ws: WebSocket;
+const handleCreateRoom = (room: Record<string, string>, user: User) => {
+    isAuthorised.value = true;
 
-const isOpen = () => ws.readyState === ws.OPEN
-
-
-const pokerStore = usePokerStore();
-
-const me = ref<User>({name: 'Jan', id: '1', points: 0});
-
-const show = ref(false);
-
-const room = '';
-
-const { state: pokerState } = storeToRefs(pokerStore)
-
-
-const summary = computed(() => {
-    const points = usersCollection.value.map(user => user.points).filter(point => typeof point === 'number') as number[];
-    const sum = points.reduce((acc, point) => acc + point, 0);
-    return sum;
-});
-
-const usersCollection: Ref<User[]> = ref(pokerState.value.users as unknown as User[]);
-
-const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
-
-const handleClick = (card: number | string | undefined) => {
-    if (!card) {
-        return;
+    const payload = {
+        type: MessageType.INIT,
+        room: room,
+        user: user,
     }
 
-    me.value.points = card;
+    ws.send(JSON.stringify(payload))
+}
 
-    ws.OPEN
-    ws.send(`${JSON.stringify(me.value)}`);
+const me = ref<User>({id: '1', name: '', points: ''})
 
-    me.value.points = card;
-    const meUser = usersCollection.value.find(user => user.id === me.value.id);
-    meUser && (meUser.points = card);
+const users = ref<User[]>([])
+
+const handleJoinRoom = () => {
+    isAuthorised.value = true;
 }
 
 onMounted(() => {
-    ws = new WebSocket('wss://ogarniamdiete.pl:8443')
+    ws = new WebSocket('wss://ogarniamdiete.pl:8443');
 
     ws.onopen = (event) => {
-        console.log(event)
-        console.log('connected')
-    }
-
-    ws.onclose = (event) => {
-        console.log(event)
-        ws.send('ping')
-        console.log('disconnected')
-    }
+        console.log('WebSocket connection established')
+        me.value.id = event.data;
+        setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send('pong');
+            }
+        }, 5000); // Changed interval to 1 second
+    };
 
     ws.onmessage = (event) => {
-        console.log(event.data)
-        if (event.data === 'pong') {
-            ws.send('ping');
+        if (event.data === 'ping') {
+            ws.send('pong');
+        } else if (event.data === 'pong') {
+            console.log('Received pong');
         } else {
-            const data = JSON.parse(event.data);
-            if (data.type === 'users') {
-                usersCollection.value = data.users;
-                ws.send('ping');
+            if (!isJsonString(event.data)) {
+                return;
             }
+            const data = JSON.parse(event.data)
+            data.type === MessageType.INIT && handleJoinRoom();
         }
-        
-    }
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket connection closed');
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
 }) 
 
 </script>
-
-<style lang="scss">
-$card-width: 133px;
-
-h1 {
-    margin-bottom: 20px;
-    font: 64px 'Roboto', sans-serif;
-}
-
-.room {
-    margin-bottom: 48px;
-}
-
-.container {
-    display: flex;
-    flex-direction: row;
-    height: 100vh;
-    max-width: 1366px;
-    width: 100%;
-}
-
-.room-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: hsl(226, 59%, 10%);
-    color: white;
-}
-
-.people-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-color: hsl(226, 59%, 10%);
-    color: white;
-}
-
-.cards {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    width: calc($card-width * 5 + 40px);
-}
-
-.card {
-    padding: 20px;
-    background-color: hsl(226, 59%, 20%);
-    border-radius: 10px;
-    cursor: pointer;
-    border: 1px solid white;
-    min-width: $card-width;
-}
-
-</style>
