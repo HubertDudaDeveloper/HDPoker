@@ -14,21 +14,66 @@
             </label>
             <input id="password" v-model="password" type="password" placeholder="Super tajne hasło"/>
         </div>
+
+        <div v-if="status">
+            {{ status }}
+        </div>
         
         <div class="action-wrapper">
-            <button>Dołącz do pokoju</button>
-            <button>Utwórz pokój</button>
+            <button @click="handleJoinRoom">Dołącz do pokoju</button>
+            <button @click="handleCreateRoom">Utwórz pokój</button>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { storeToRefs } from 'pinia';
+import { ref, computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import MessageType from '@/pages/index.vue'
 
+const emits = defineEmits(['createRoom', 'joinRoom']);
 const room = ref('');
 const userName = ref('');
 const password = ref('');
+
+const status = ref('')
+
+const handleJoinRoom = async () => {
+    const roomInfo = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type: 'join', room: { name: room.value, password: password.value } })
+    })
+
+    if (JSON.parse(roomInfo).response) {
+        emits('joinRoom', { room: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
+        console.log('Joining room')
+    } else {
+        status.value = JSON.parse(roomInfo).message
+    }
+
+}
+
+const handleCreateRoom = async () => {
+    const roomInfo = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type: 'init', room: { name: room.value, password: password.value } })
+    })
+
+    console.log(JSON.parse(roomInfo))
+
+    if (JSON.parse(roomInfo).response) {
+        emits('createRoom', { name: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
+        console.log('Creating room')
+    } else {
+        status.value = JSON.parse(roomInfo).message
+    }
+}
 
 </script>
 

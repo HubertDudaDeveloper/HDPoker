@@ -1,8 +1,8 @@
 <template>
-    <div v-if="isAuthorised" class="container">
+    <div class="container">
         <div class="room-column">
         <h1>Poker</h1>
-        <p class="room">Pokój: <input v-model="room"/></p>
+        <p class="room">Pokój: {{ props.ws.room.name }}</p>
         <div class="cards">
             <span v-for="(card, index) in cards" class="card" @click="() => handleClick(card)">
                 {{ card }}
@@ -34,13 +34,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
-
+import type { User } from '@/pages/index.vue';
+import MessageType from '@/pages/index.vue';
 
 const props = defineProps(['ws']);
 
 const route = useRoute()
-
-const me = ref<User>({name: 'Jan', id: '1', points: 0});
 
 const show = ref(false);
 
@@ -54,7 +53,7 @@ const summary = computed(() => {
     return sum;
 });
 
-const usersCollection: Ref<User[]> = ref([]);
+const usersCollection: Ref<User[]> = ref(props.ws.room.users);
 
 const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
 
@@ -63,12 +62,12 @@ const handleClick = (card: number | string | undefined) => {
         return;
     }
 
-    me.value.points = card;
+    props.ws.me.points = card;
 
-    props.ws.send(`${JSON.stringify(me.value)}`);
+    props.ws.send(`${JSON.stringify({user: props.ws.me, type: MessageType.VOTE, room: props.ws.room})}`)
 
-    me.value.points = card;
-    const meUser = usersCollection.value.find(user => user.id === me.value.id);
+    props.ws.me.points = card;
+    const meUser = usersCollection.value.find(user => user.id === props.ws.me.id);
     meUser && (meUser.points = card);
 }
 

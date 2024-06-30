@@ -1,6 +1,6 @@
 <template>
     <div>
-        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom()" @joinRoom="handleCreateRoom()"/>
+        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom()"/>
         <RoomView v-else :ws="ws"/>
     </div>
 </template>
@@ -17,7 +17,12 @@ const isJsonString = (str: string) => {
   return true;
 }
 
-let ws: WebSocket;
+interface extWebSocket extends WebSocket {
+    me: User;
+    room: Room;
+}
+
+let ws: extWebSocket
 
 enum MessageType {
     INIT = 'init', //stwórz pokój
@@ -33,11 +38,24 @@ enum MessageType {
 export interface User {
     id: string;
     name: string;
+    image: string;
     points: number | string;
 }
 
-const handleCreateRoom = (room: Record<string, string>, user: User) => {
-    isAuthorised.value = true;
+export interface Room {
+    id: string;
+    name: string;
+    points: number | string;
+    password: string;
+    users: User[];
+    revealed: boolean;
+    tasks: string;
+    votes: [];
+    messages: [];
+}
+
+
+const handleCreateRoom = (room: Room, user: User) => {
 
     const payload = {
         type: MessageType.INIT,
@@ -48,20 +66,19 @@ const handleCreateRoom = (room: Record<string, string>, user: User) => {
     ws.send(JSON.stringify(payload))
 }
 
-const me = ref<User>({id: '1', name: '', points: ''})
-
 const users = ref<User[]>([])
 
-const handleJoinRoom = () => {
-    isAuthorised.value = true;
+const handleJoinRoom = (data: Record<string, Room & User>) => {
+    ws.me = data.user
+    ws.room = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+    isAuthorised.value = true
 }
 
 onMounted(() => {
-    ws = new WebSocket('wss://ogarniamdiete.pl:8443');
+    ws = new WebSocket('wss://ogarniamdiete.pl:8443') as extWebSocket;
 
     ws.onopen = (event) => {
         console.log('WebSocket connection established')
-        me.value.id = event.data;
         setInterval(() => {
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send('pong');
@@ -70,18 +87,22 @@ onMounted(() => {
     };
 
     ws.onmessage = (event) => {
-        if (event.data === 'ping') {
-            ws.send('pong');
-        } else if (event.data === 'pong') {
-            console.log('Received pong');
-        } else {
-            if (!isJsonString(event.data)) {
-                return;
-            }
-            const data = JSON.parse(event.data)
-            data.type === MessageType.INIT && handleJoinRoom();
+
+        switch (event.data) {
+            case 'ping':
+                ws.send('pong');
+                break;
+            case 'pong':
+                console.log('Received pong');
+                break;
+            default:
+                if (!isJsonString(event.data)) {
+                    return;
+                }
+                const data = JSON.parse(event.data)
+                data.type === MessageType.INIT && handleJoinRoom(data);
         }
-    };
+    }
 
     ws.onclose = () => {
         console.log('WebSocket connection closed');
