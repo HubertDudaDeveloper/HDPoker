@@ -1,7 +1,7 @@
 <template>
     <div>
         <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
-        <RoomView v-else :users="users" :room="room" :ws="ws"/>
+        <RoomView v-else :users="users" :room="room" :me="me" :ws="ws"/>
     </div>
 </template>
 
@@ -59,6 +59,8 @@ const users: Ref<User[]> = ref([])
 
 const room: Ref<Room | any> = ref({})
 
+const me: Ref<User | any> = ref({})
+
 const handleCreateRoom = (room: Room, user: User) => {
 
     const payload = {
@@ -79,6 +81,7 @@ const handleJoinAfterCreateRoom = (data: Record<string, Room & User>) => {
 const handleJoinAfterJoinRoom = (data: Record<string, Room & User>) => {
     users.value = JSON.parse(data.room.users as unknown as string)
     room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+    me.value = data.user
     isAuthorised.value = true
 }
 

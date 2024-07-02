@@ -8,18 +8,19 @@
                 {{ card }}
             </span>
         </div>
-        <template v-if="show">
+        <template v-if="props.room.revealed">
             {{ summary }}
         </template> 
     </div>
     <div class="people-column">
         <h2>Gracze</h2>
-        <button class="show-btn" @click="show = !show">Odkryj</button>
+        <button class="show-btn" @click="handleShow">Odkryj</button>
+        <button class="show-btn" @click="handleReset">Resetuj</button>
         <div class="people">
-            <p v-for="(user, index) in usersCollection" :key="`${user.name} ${index}`">
+            <p v-for="(user, index) in users" :key="`${user.name} ${index}`">
                 {{ user.name }}: 
                 <template v-if="user.points">
-                    <template v-if="show">
+                    <template v-if="props.room.revealed">
                         {{ user.points }}
                     </template>
                     <template v-else>
@@ -33,37 +34,41 @@
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { User } from '@/pages/index.vue';
+import type { Room, User } from '@/pages/index.vue';
 import MessageType from '@/pages/index.vue';
 
-const props = defineProps(['users', 'room', 'ws']);
+const props = defineProps(['users', 'room', 'me', 'ws']);
 
-const show = ref(false);
-
-const me: Ref<User | any> = ref();
+const points: Ref<string | number> = ref('');
 
 const summary = computed(() => {
-    const points = usersCollection.value.map(user => user.points).filter(point => typeof point === 'number') as number[];
+    const points = props.users.map((user: any) => user.points).filter((point: any) => typeof point === 'number') as number[];
     const sum = points.reduce((acc, point) => acc + point, 0);
-    return sum;
+    const votedUsers = props.users.filter((user: any) => typeof user.points === 'number').length;
+    return votedUsers ? sum / votedUsers : 'Brak głosów';
 });
 
-const usersCollection: Ref<User[]> = ref(props.room.users);
-
 const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
+
+const handleShow = async () => {
+    await props.ws.send(`${JSON.stringify({ type: 'reveal',user: props.me, room: props.room })}`);
+}
+
+const handleReset = async () => {
+    await props.ws.send(`${JSON.stringify({ type: 'reset', user: props.me, room: props.room })}`);
+}
 
 const handleClick = (card: number | string | undefined) => {
     if (!card) {
         return;
     }
 
-    me.value.points = card;
+    points.value = card;
 
-    props.ws.send(`${JSON.stringify({user: me.value, type: MessageType.VOTE, room: props.room})}`)
+    const fUser = props.users.find((item: User)=> item.id === props.me.id)
+    fUser.points = card;
 
-    me.value.points = card;
-    const meUser = usersCollection.value.find(user => user.id === me.value.id);
-    meUser && (meUser.points = card);
+    props.ws.send(`${JSON.stringify({ type: 'vote', user: fUser, room: props.room})}`)
 }
 
 </script>
