@@ -1,7 +1,7 @@
 <template>
     <div>
-        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom()"/>
-        <RoomView v-else :ws="ws"/>
+        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
+        <RoomView v-else :users="users" :room="room" :ws="ws"/>
     </div>
 </template>
 
@@ -32,7 +32,8 @@ enum MessageType {
     LEAVE = 'leave', //opuść pokój
     MESSAGE = 'message', //wyslij wiadomość w pokoju
     TASK = 'task', // ustaw/usuń/edytuj task w pokoju
-    REVEAL = 'reveal', // odkryj głosy w pokoju  
+    REVEAL = 'reveal', // odkryj głosy w pokoju
+    UPDATE = 'update', // zaktualizuj pokój
 }
 
 export interface User {
@@ -54,6 +55,9 @@ export interface Room {
     messages: [];
 }
 
+const users: Ref<User[]> = ref([])
+
+const room: Ref<Room | any> = ref({})
 
 const handleCreateRoom = (room: Room, user: User) => {
 
@@ -66,11 +70,32 @@ const handleCreateRoom = (room: Room, user: User) => {
     ws.send(JSON.stringify(payload))
 }
 
-const users = ref<User[]>([])
+const handleJoinAfterCreateRoom = (data: Record<string, Room & User>) => {
+    users.value = JSON.parse(data.room.users as unknown as string)
+    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+    isAuthorised.value = true
+}
 
-const handleJoinRoom = (data: Record<string, Room & User>) => {
-    ws.me = data.user
-    ws.room = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+const handleJoinAfterJoinRoom = (data: Record<string, Room & User>) => {
+    users.value = JSON.parse(data.room.users as unknown as string)
+    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+    isAuthorised.value = true
+}
+
+const handleUpdateRoom = (data: Record<string, Room & User>) => {
+    users.value = JSON.parse(data.room.users as unknown as string)
+    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+}
+
+const handleJoinRoom = (room: Room, user: User) => {
+
+    const payload = {
+        type: MessageType.JOIN,
+        room: room,
+        user: user,
+    }
+
+    ws.send(JSON.stringify(payload))
     isAuthorised.value = true
 }
 
@@ -100,7 +125,9 @@ onMounted(() => {
                     return;
                 }
                 const data = JSON.parse(event.data)
-                data.type === MessageType.INIT && handleJoinRoom(data);
+                data.type === MessageType.INIT && handleJoinAfterCreateRoom(data);
+                data.type === MessageType.JOIN && handleJoinAfterJoinRoom(data);
+                data.type === MessageType.UPDATE && handleUpdateRoom(data);
         }
     }
 

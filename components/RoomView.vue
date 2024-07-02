@@ -2,7 +2,7 @@
     <div class="container">
         <div class="room-column">
         <h1>Poker</h1>
-        <p class="room">Pokój: {{ props.ws.room.name }}</p>
+        <p class="room">Pokój: {{ props.room.name }}</p>
         <div class="cards">
             <span v-for="(card, index) in cards" class="card" @click="() => handleClick(card)">
                 {{ card }}
@@ -33,19 +33,14 @@
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
 import type { User } from '@/pages/index.vue';
 import MessageType from '@/pages/index.vue';
 
-const props = defineProps(['ws']);
-
-const route = useRoute()
+const props = defineProps(['users', 'room', 'ws']);
 
 const show = ref(false);
 
-const room = '';
-
-const users = ref<User[]>([]);
+const me: Ref<User | any> = ref();
 
 const summary = computed(() => {
     const points = usersCollection.value.map(user => user.points).filter(point => typeof point === 'number') as number[];
@@ -53,7 +48,7 @@ const summary = computed(() => {
     return sum;
 });
 
-const usersCollection: Ref<User[]> = ref(props.ws.room.users);
+const usersCollection: Ref<User[]> = ref(props.room.users);
 
 const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
 
@@ -62,16 +57,14 @@ const handleClick = (card: number | string | undefined) => {
         return;
     }
 
-    props.ws.me.points = card;
+    me.value.points = card;
 
-    props.ws.send(`${JSON.stringify({user: props.ws.me, type: MessageType.VOTE, room: props.ws.room})}`)
+    props.ws.send(`${JSON.stringify({user: me.value, type: MessageType.VOTE, room: props.room})}`)
 
-    props.ws.me.points = card;
-    const meUser = usersCollection.value.find(user => user.id === props.ws.me.id);
+    me.value.points = card;
+    const meUser = usersCollection.value.find(user => user.id === me.value.id);
     meUser && (meUser.points = card);
 }
-
-
 
 </script>
 

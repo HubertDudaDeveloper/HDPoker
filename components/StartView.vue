@@ -48,7 +48,7 @@ const handleJoinRoom = async () => {
     })
 
     if (JSON.parse(roomInfo).response) {
-        emits('joinRoom', { room: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
+        emits('joinRoom', { name: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
         console.log('Joining room')
     } else {
         status.value = JSON.parse(roomInfo).message
