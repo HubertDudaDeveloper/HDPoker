@@ -10,12 +10,29 @@
         </div>
         <template v-if="props.room.revealed">
             {{ summary }}
-        </template> 
+        </template>
+        <div class="tasks">
+            <div class="tasks-header">
+                <h2>Zadania</h2>
+                <button class="" @click="handleAddTask">Dodaj nowe</button>
+            </div>
+            <div v-if="isNewTask" class="new-task">
+                <input v-model="newTask.name" placeholder="Nazwa zadania"/>
+                <input v-model="newTask.link" placeholder="Link do zadania"/>
+                <button @click="handleSendNewTask">Dodaj</button>
+            </div>
+            <div v-for="(task, index) in props.room.task" class="task" :key="task">
+                <p>{{ task.name }}</p>
+                <a :href="task.link">Link</a>
+                <p>{{ task.points }}</p>
+            </div>
+        </div> 
     </div>
     <div class="people-column">
         <h2>Gracze</h2>
         <button class="show-btn" @click="handleShow">Odkryj</button>
         <button class="show-btn" @click="handleReset">Resetuj</button>
+        <button class="show-btn" @click="handleLeave">Wyjdź z pokoju</button>
         <div class="people">
             <p v-for="(user, index) in users" :key="`${user.name} ${index}`">
                 {{ user.name }}: 
@@ -34,12 +51,21 @@
 </template>
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { Room, User } from '@/pages/index.vue';
+import type { Room, User, Task } from '@/pages/index.vue';
 import MessageType from '@/pages/index.vue';
 
 const props = defineProps(['users', 'room', 'me', 'ws']);
 
 const points: Ref<string | number> = ref('');
+
+const isNewTask = ref(false);
+
+const newTask: Ref<Task> = ref({
+    id: '',
+    name: '',
+    link: '',
+    points: 0,
+});
 
 const summary = computed(() => {
     const points = props.users.map((user: any) => user.points).filter((point: any) => typeof point === 'number') as number[];
@@ -56,6 +82,19 @@ const handleShow = async () => {
 
 const handleReset = async () => {
     await props.ws.send(`${JSON.stringify({ type: 'reset', user: props.me, room: props.room })}`);
+}
+
+const handleLeave = async () => {
+    await props.ws.send(`${JSON.stringify({ type: 'leave', user: props.me, room: props.room })}`);
+}
+
+const handleAddTask = async () => {
+    isNewTask.value = true;
+}
+
+const handleSendNewTask = async () => {
+    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...JSON.parse(JSON.parse(props.room.tasks)), newTask.value]}, })}`);
+    isNewTask.value = false;
 }
 
 const handleClick = (card: number | string | undefined) => {
@@ -129,6 +168,29 @@ h1 {
     cursor: pointer;
     border: 1px solid white;
     min-width: $card-width;
+}
+
+.tasks {
+    display: flex;
+    flex-direction: column;
+    margin-top: 20px;
+    width: 100%;
+    border: 1px solid white;
+    background-color: hsl(226, 59%, 20%);
+    border-radius: 4px;
+    padding: 20px;
+
+    .tasks-header {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .task {
+        
+    }
 }
 
 </style>

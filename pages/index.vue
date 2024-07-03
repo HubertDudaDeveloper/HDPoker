@@ -55,6 +55,13 @@ export interface Room {
     messages: [];
 }
 
+export interface Task {
+    id: string;
+    name: string;
+    link: string;
+    points: number;
+}
+
 const users: Ref<User[]> = ref([])
 
 const room: Ref<Room | any> = ref({})
@@ -75,6 +82,7 @@ const handleCreateRoom = (room: Room, user: User) => {
 const handleJoinAfterCreateRoom = (data: Record<string, Room & User>) => {
     users.value = JSON.parse(data.room.users as unknown as string)
     room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
+    me.value = data.user
     isAuthorised.value = true
 }
 
