@@ -9,7 +9,10 @@
             </span>
         </div>
         <template v-if="props.room.revealed">
-            {{ summary }}
+            Średnia punktów: {{ summary }}
+        </template>
+        <template v-else>
+            Średnia punktów: ?
         </template>
         <div class="tasks">
             <div class="tasks-header">
@@ -21,20 +24,20 @@
                 <input v-model="newTask.link" placeholder="Link do zadania"/>
                 <button @click="handleSendNewTask">Dodaj</button>
             </div>
-            <div v-for="(task, index) in props.room.task" class="task" :key="task">
+            <div v-for="(task, index) in tasks" class="task" :key="task">
                 <p>{{ task.name }}</p>
                 <a :href="task.link">Link</a>
                 <p>{{ task.points }}</p>
             </div>
         </div> 
     </div>
-    <div class="people-column">
+    <div class="users-column">
         <h2>Gracze</h2>
         <button class="show-btn" @click="handleShow">Odkryj</button>
         <button class="show-btn" @click="handleReset">Resetuj</button>
         <button class="show-btn" @click="handleLeave">Wyjdź z pokoju</button>
-        <div class="people">
-            <p v-for="(user, index) in users" :key="`${user.name} ${index}`">
+        <div class="users">
+            <p v-for="(user, index) in users" class="user" :key="`${user.name} ${index}`">
                 {{ user.name }}: 
                 <template v-if="user.points">
                     <template v-if="props.room.revealed">
@@ -57,6 +60,13 @@ import MessageType from '@/pages/index.vue';
 const props = defineProps(['users', 'room', 'me', 'ws']);
 
 const points: Ref<string | number> = ref('');
+
+const tasks = computed(() => {
+    if (!props.room?.tasks) {
+        return []
+    }
+    return JSON.parse(typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(props.room.tasks) : props.room.tasks).reverse()
+});
 
 const isNewTask = ref(false);
 
@@ -93,7 +103,8 @@ const handleAddTask = async () => {
 }
 
 const handleSendNewTask = async () => {
-    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...JSON.parse(JSON.parse(props.room.tasks)), newTask.value]}, })}`);
+    newTask.value.id = (JSON.parse(props.room.tasks).length + 1).toString();
+    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...JSON.parse(props.room.tasks), newTask.value]}, })}`);
     isNewTask.value = false;
 }
 
@@ -130,6 +141,7 @@ h1 {
     height: 100vh;
     max-width: 1366px;
     width: 100%;
+    gap: 20px;
 }
 
 .room-column {
@@ -142,7 +154,7 @@ h1 {
     color: white;
 }
 
-.people-column {
+.users-column {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -150,6 +162,20 @@ h1 {
     height: 100vh;
     background-color: hsl(226, 59%, 10%);
     color: white;
+
+    .users {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 20px;
+
+        .user {
+            padding: 20px;
+            border: 1px solid white;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+    }
 }
 
 .cards {
@@ -178,7 +204,6 @@ h1 {
     border: 1px solid white;
     background-color: hsl(226, 59%, 20%);
     border-radius: 4px;
-    padding: 20px;
 
     .tasks-header {
         display: flex;
@@ -186,10 +211,14 @@ h1 {
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
+        padding: 20px;
+        border-bottom: 1px solid white;
     }
 
     .task {
-        
+        padding: 20px;
+        width: 100%;
+        border-bottom: 1px dashed white;
     }
 }
 
