@@ -1,12 +1,25 @@
 <template>
     <div>
-        <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
-        <RoomView v-else :users="users" :room="room" :me="me" :ws="ws"/>
+        <template>
+            <p class="server" :class="{ 'alive': isAlive, 'dead': !isAlive }">
+                Server: {{ isAlive ? 'Aktywny' : 'Rozłączony' }}
+            </p>
+        </template>
+        <template v-if="!isLoading">
+            <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
+            <RoomView v-else :users="users" :room="room" :me="me" :ws="ws"/>
+        </template>
+
+        <div class="loader" v-else>
+            <img src="/assets/loader.gif" alt="loader"/>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 const isAuthorised = ref(false);
+
+const isAlive = ref(true);
 
 const isJsonString = (str: string) => {
   try {
@@ -68,6 +81,8 @@ const room: Ref<Room | any> = ref({})
 
 const me: Ref<User | any> = ref({})
 
+const isLoading = ref(true)
+
 const handleCreateRoom = (room: Room, user: User) => {
 
     const payload = {
@@ -83,6 +98,8 @@ const handleJoinAfterCreateRoom = (data: Record<string, Room & User>) => {
     users.value = JSON.parse(data.room.users as unknown as string)
     room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
     me.value = data.user
+    localStorage.setItem('user', JSON.stringify(data.user))
+    localStorage.setItem('room', JSON.stringify({...data.room, users: JSON.parse(data.room.users as unknown as string)}))
     isAuthorised.value = true
 }
 
@@ -90,6 +107,8 @@ const handleJoinAfterJoinRoom = (data: Record<string, Room & User>) => {
     users.value = JSON.parse(data.room.users as unknown as string)
     room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
     me.value = data.user
+    localStorage.setItem('user', JSON.stringify(data.user))
+    localStorage.setItem('room', JSON.stringify({...data.room, users: JSON.parse(data.room.users as unknown as string)}))
     isAuthorised.value = true
 }
 
@@ -98,7 +117,7 @@ const handleUpdateRoom = (data: Record<string, Room & User>) => {
     room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
 }
 
-const handleJoinRoom = (room: Room, user: User) => {
+const handleJoinRoom = async (room: Room, user: User) => {
 
     const payload = {
         type: MessageType.JOIN,
@@ -110,45 +129,116 @@ const handleJoinRoom = (room: Room, user: User) => {
     isAuthorised.value = true
 }
 
-onMounted(() => {
-    ws = new WebSocket('wss://ogarniamdiete.pl:8443') as extWebSocket;
+const handleLeaveRoom = () => {
+    isAuthorised.value = false
+    room.value = {}
+    users.value = []
+}
 
-    ws.onopen = (event) => {
-        console.log('WebSocket connection established')
-        setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send('pong');
-            }
-        }, 5000); // Changed interval to 1 second
-    };
+const connectToWSS = async () => {
 
-    ws.onmessage = (event) => {
+    try {
 
-        switch (event.data) {
-            case 'ping':
-                ws.send('pong');
-                break;
-            case 'pong':
-                console.log('Received pong');
-                break;
-            default:
-                if (!isJsonString(event.data)) {
-                    return;
+        ws = new WebSocket('wss://ogarniamdiete.pl:8443') as extWebSocket;
+
+        ws.onopen = (event) => {
+            console.log('WebSocket connection established')
+            setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send('pong');
+                    isAlive.value = true;
+                } else {
+                    isAlive.value = false;
                 }
-                const data = JSON.parse(event.data)
-                data.type === MessageType.INIT && handleJoinAfterCreateRoom(data);
-                data.type === MessageType.JOIN && handleJoinAfterJoinRoom(data);
-                data.type === MessageType.UPDATE && handleUpdateRoom(data);
+            }, 5000); // Changed interval to 1 second
+        };
+
+        ws.onmessage = (event) => {
+
+            switch (event.data) {
+                case 'ping':
+                    ws.send('pong');
+                    break;
+                case 'pong':
+                    console.log('Received pong');
+                    break;
+                default:
+                    if (!isJsonString(event.data)) {
+                        return;
+                    }
+                    const data = JSON.parse(event.data)
+                    data.type === MessageType.INIT && handleJoinAfterCreateRoom(data);
+                    data.type === MessageType.JOIN && handleJoinAfterJoinRoom(data);
+                    data.type === MessageType.UPDATE && handleUpdateRoom(data);
+                    data.type === MessageType.LEAVE && handleLeaveRoom();
+            }
         }
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+    } catch (err) {
+        console.error(err)
     }
+}
 
-    ws.onclose = () => {
-        console.log('WebSocket connection closed');
-    };
+onMounted(async () => {
 
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-    };
+    me.value = JSON.parse(localStorage.getItem('user') ?? '{}')
+
+    const savedRoom = JSON.parse(localStorage.getItem('room') ?? '{}')
+
+    const isSavedRoom = Boolean(Object.values(savedRoom).length)
+
+    try {
+        await connectToWSS()   
+        if (isSavedRoom) {
+            room.value = savedRoom        
+            setTimeout(() => handleJoinRoom(savedRoom, me.value), 100)
+        }   
+    } catch (err) {
+        console.error(err)
+    } finally {
+        isLoading.value = false
+    }
 }) 
 
 </script>
+
+<style lang="scss" scoped>
+
+.server {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+    background-color: hsl(226, 59%, 10%);
+
+    .dead {
+        color: red;
+    }
+
+    .alive {
+        color: green;
+    }
+}
+
+.loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100%;
+
+    img {
+        border-radius: 25%;
+        width: 100px;
+        height: 100px;
+    }
+}
+
+</style>

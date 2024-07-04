@@ -87,7 +87,12 @@ const summary = computed(() => {
 const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
 
 const handleShow = async () => {
+    const fTasks = typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(JSON.parse(props.room.tasks)) : JSON.parse(props.room.tasks)
+ 
+    fTasks.reverse()[0].points = summary.value;
+
     await props.ws.send(`${JSON.stringify({ type: 'reveal',user: props.me, room: props.room })}`);
+    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: fTasks.reverse() }, })}`);
 }
 
 const handleReset = async () => {
@@ -104,7 +109,10 @@ const handleAddTask = async () => {
 
 const handleSendNewTask = async () => {
     newTask.value.id = (JSON.parse(props.room.tasks).length + 1).toString();
-    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...JSON.parse(props.room.tasks), newTask.value]}, })}`);
+
+    const oldTasks = typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(JSON.parse(props.room.tasks)) : JSON.parse(props.room.tasks)
+
+    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...oldTasks, newTask.value]}, })}`);
     isNewTask.value = false;
 }
 
@@ -204,6 +212,8 @@ h1 {
     border: 1px solid white;
     background-color: hsl(226, 59%, 20%);
     border-radius: 4px;
+    max-height: 600px;
+    overflow-y: auto;
 
     .tasks-header {
         display: flex;

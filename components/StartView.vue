@@ -28,18 +28,28 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { storeToRefs } from 'pinia'
-import MessageType from '@/pages/index.vue'
+import type { User } from '@/pages/index.vue'
 
-const emits = defineEmits(['createRoom', 'joinRoom']);
-const room = ref('');
-const userName = ref('');
-const password = ref('');
+const emits = defineEmits(['createRoom', 'joinRoom'])
+const room = ref('')
+const userName = ref('')
+const password = ref('')
 
 const status = ref('')
 
+const getUser = (): User => {
+    
+    const savedUser = JSON.parse(localStorage.getItem('user') ?? '{}')
+
+    savedUser.name = userName.value
+
+    const isSavedUser = Boolean(Object.values(savedUser).length)
+
+    return isSavedUser ? savedUser : { id: 'init', name: userName.value, points: 0 }
+}
+
 const handleJoinRoom = async () => {
-    const roomInfo = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
+    const roomInfo: string = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -48,7 +58,7 @@ const handleJoinRoom = async () => {
     })
 
     if (JSON.parse(roomInfo).response) {
-        emits('joinRoom', { name: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
+        emits('joinRoom', { name: room.value, password: password.value }, getUser())
         console.log('Joining room')
     } else {
         status.value = JSON.parse(roomInfo).message
@@ -57,7 +67,7 @@ const handleJoinRoom = async () => {
 }
 
 const handleCreateRoom = async () => {
-    const roomInfo = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
+    const roomInfo: string = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -68,7 +78,7 @@ const handleCreateRoom = async () => {
     console.log(JSON.parse(roomInfo))
 
     if (JSON.parse(roomInfo).response) {
-        emits('createRoom', { name: room.value, password: password.value }, { id: '1', name: userName.value, points: 0 })
+        emits('createRoom', { name: room.value, password: password.value }, getUser())
         console.log('Creating room')
     } else {
         status.value = JSON.parse(roomInfo).message
@@ -77,7 +87,7 @@ const handleCreateRoom = async () => {
 
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .wrapper {
     display: flex;
     flex-direction: column;
