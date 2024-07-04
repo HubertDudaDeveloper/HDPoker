@@ -32,10 +32,13 @@
         </div> 
     </div>
     <div class="users-column">
-        <h2>Gracze</h2>
-        <button class="show-btn" @click="handleShow">Odkryj</button>
-        <button class="show-btn" @click="handleReset">Resetuj</button>
-        <button class="show-btn" @click="handleLeave">Wyjdź z pokoju</button>
+        <div class="action-container">
+            <button class="btn" @click="handleShow">Odkryj</button>
+            <button class="btn" @click="handleReset">Resetuj</button>
+            <button class="btn" @click="handleReset">Zakończ</button>
+            <button class="btn" @click="handleLeave">Wyjdź z pokoju</button>
+        </div>
+        <h2>Gracze:</h2>
         <div class="users">
             <p v-for="(user, index) in users" class="user" :key="`${user.name} ${index}`">
                 {{ user.name }}: 
@@ -149,7 +152,7 @@ h1 {
     height: 100vh;
     max-width: 1366px;
     width: 100%;
-    gap: 20px;
+    gap: 48px;
 }
 
 .room-column {
@@ -171,13 +174,39 @@ h1 {
     background-color: hsl(226, 59%, 10%);
     color: white;
 
+    .action-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 20px;
+        width: 100%;
+
+        .btn {
+            width: calc(50% - 2px);
+            padding: 10px;
+            border: 1px solid white;
+            border-radius: 4px;
+            background-color: hsl(226, 59%, 20%);
+            color: white;
+            cursor: pointer;
+        }
+    }
+
+    h2 {
+        border-radius: 16px 16px 0 0;
+        border: 1px solid white;
+        width: 100%;
+        padding: 20px;
+    }
+
     .users {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        margin-top: 20px;
+        width: 100%;
 
         .user {
+            width: 100%;
             padding: 20px;
             border: 1px solid white;
             border-radius: 4px;

@@ -1,6 +1,7 @@
 <template>
     <div class="wrapper">
         <div class="data-container">
+            <img class="user-image" :src="userImage" height="100px" width="100px"/>
             <label for="room">
                 Wpisz nazwę pokoju
             </label>
@@ -9,6 +10,10 @@
                 Wpisz swoją nazwę
             </label>
             <input id="user" v-model="userName" placeholder="Jan Kowalski"/>
+            <label for="image">
+                Dodaj obrazek!
+            </label>
+            <input id="image" type="file" @change="handleImageChange" accept="image/png, image/gif, image/jpeg"/>
             <label for="password">
                 Hasło pokoju (opcjonalne)
             </label>
@@ -34,6 +39,7 @@ const emits = defineEmits(['createRoom', 'joinRoom'])
 const room = ref('')
 const userName = ref('')
 const password = ref('')
+const userImage = ref('')
 
 const status = ref('')
 
@@ -46,6 +52,19 @@ const getUser = (): User => {
     const isSavedUser = Boolean(Object.values(savedUser).length)
 
     return isSavedUser ? savedUser : { id: 'init', name: userName.value, points: 0 }
+}
+
+const handleImageChange = (e: Event) => {
+    const target = e.target as HTMLInputElement
+    const file = target.files?.[0]
+
+    if (file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            userImage.value = e.target?.result as string
+        }
+        reader.readAsDataURL(file)
+    }
 }
 
 const handleJoinRoom = async () => {
@@ -114,5 +133,12 @@ const handleCreateRoom = async () => {
 
 label {
     margin: 10px 0;
+}
+
+.user-image {
+    border-radius: 50%;
+    margin: 10px 0;
+    object-fit: contain;
+    align-self: center;
 }
 </style>

@@ -198,7 +198,7 @@ onMounted(async () => {
         await connectToWSS()   
         if (isSavedRoom) {
             room.value = savedRoom        
-            setTimeout(() => handleJoinRoom(savedRoom, me.value), 100)
+            setTimeout(() => handleJoinRoom(savedRoom, me.value), 500)
         }   
     } catch (err) {
         console.error(err)
@@ -209,7 +209,7 @@ onMounted(async () => {
 
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 
 .server {
     display: flex;
@@ -239,6 +239,15 @@ onMounted(async () => {
         width: 100px;
         height: 100px;
     }
+}
+
+input {
+    background-color: hsl(226, 59%, 10%);
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid white;
+    margin: 10px 0;
+    color: white;
 }
 
 </style>
