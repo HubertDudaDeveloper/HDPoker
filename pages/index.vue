@@ -1,10 +1,8 @@
 <template>
     <div>
-        <template>
-            <p class="server" :class="{ 'alive': isAlive, 'dead': !isAlive }">
-                Server: {{ isAlive ? 'Aktywny' : 'Rozłączony' }}
-            </p>
-        </template>
+        <p class="server" :class="{ 'alive': isAlive, 'dead': !isAlive }">
+            Server: {{ isAlive ? 'Aktywny' : 'Rozłączony' }}
+        </p>
         <template v-if="!isLoading">
             <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
             <RoomView v-else :users="users" :room="room" :me="me" :ws="ws"/>
@@ -47,6 +45,7 @@ enum MessageType {
     TASK = 'task', // ustaw/usuń/edytuj task w pokoju
     REVEAL = 'reveal', // odkryj głosy w pokoju
     UPDATE = 'update', // zaktualizuj pokój
+    ERROR = 'error', // zaktualizuj pokój
 }
 
 export interface User {
@@ -73,6 +72,7 @@ export interface Task {
     name: string;
     link: string;
     points: number;
+    status: string;
 }
 
 const users: Ref<User[]> = ref([])
@@ -133,6 +133,7 @@ const handleLeaveRoom = () => {
     isAuthorised.value = false
     room.value = {}
     users.value = []
+    localStorage.removeItem('room')
 }
 
 const connectToWSS = async () => {
@@ -171,6 +172,7 @@ const connectToWSS = async () => {
                     data.type === MessageType.JOIN && handleJoinAfterJoinRoom(data);
                     data.type === MessageType.UPDATE && handleUpdateRoom(data);
                     data.type === MessageType.LEAVE && handleLeaveRoom();
+                    data.type === MessageType.ERROR && data.code === 404 && handleLeaveRoom();
             }
         }
 
@@ -210,21 +212,12 @@ onMounted(async () => {
 </script>
 
 <style lang="scss">
-
 .server {
     display: flex;
     width: 100%;
     justify-content: center;
     padding: 10px;
-    background-color: hsl(226, 59%, 10%);
-
-    .dead {
-        color: red;
-    }
-
-    .alive {
-        color: green;
-    }
+    color: white;
 }
 
 .loader {
@@ -242,12 +235,33 @@ onMounted(async () => {
 }
 
 input {
-    background-color: hsl(226, 59%, 10%);
     padding: 10px;
     border-radius: 5px;
-    border: 1px solid white;
     margin: 10px 0;
     color: white;
+    background: rgba(255, 255, 255, 0.19);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8.6px);
+    -webkit-backdrop-filter: blur(8.6px);
+    border: 1px solid rgba(255, 255, 255, 1);
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, 0.773);
+}
+
+button {
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    color: white;
+    background: rgba(255, 255, 255, 0.19);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8.6px);
+    -webkit-backdrop-filter: blur(8.6px);
+    border: 1px solid rgba(255, 255, 255, 1);
 }
 
 </style>

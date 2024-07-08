@@ -1,6 +1,6 @@
 <template>
     <div class="wrapper">
-        <div class="data-container">
+        <form class="data-container">
             <img class="user-image" :src="userImage" height="100px" width="100px"/>
             <label for="room">
                 Wpisz nazwę pokoju
@@ -9,7 +9,7 @@
             <label for="user">
                 Wpisz swoją nazwę
             </label>
-            <input id="user" v-model="userName" placeholder="Jan Kowalski"/>
+            <input id="user" autocomplete="username" v-model="userName" placeholder="Jan Kowalski"/>
             <label for="image">
                 Dodaj obrazek!
             </label>
@@ -17,8 +17,8 @@
             <label for="password">
                 Hasło pokoju (opcjonalne)
             </label>
-            <input id="password" v-model="password" type="password" placeholder="Super tajne hasło"/>
-        </div>
+            <input id="password" autocomplete="current-password" v-model="password" type="password" placeholder="Super tajne hasło"/>
+        </form>
 
         <div v-if="status">
             {{ status }}
@@ -39,7 +39,7 @@ const emits = defineEmits(['createRoom', 'joinRoom'])
 const room = ref('')
 const userName = ref('')
 const password = ref('')
-const userImage = ref('')
+const userImage = ref('https://www.gravatar.com/avatar/?d=mp')
 
 const status = ref('')
 
@@ -77,7 +77,7 @@ const handleJoinRoom = async () => {
     })
 
     if (JSON.parse(roomInfo).response) {
-        emits('joinRoom', { name: room.value, password: password.value }, getUser())
+        emits('joinRoom', { name: room.value, password: password.value }, {...getUser(), image: userImage.value})
         console.log('Joining room')
     } else {
         status.value = JSON.parse(roomInfo).message
@@ -97,7 +97,7 @@ const handleCreateRoom = async () => {
     console.log(JSON.parse(roomInfo))
 
     if (JSON.parse(roomInfo).response) {
-        emits('createRoom', { name: room.value, password: password.value }, getUser())
+        emits('createRoom', { name: room.value, password: password.value }, {...getUser(), image: userImage.value})
         console.log('Creating room')
     } else {
         status.value = JSON.parse(roomInfo).message
@@ -138,7 +138,6 @@ label {
 .user-image {
     border-radius: 50%;
     margin: 10px 0;
-    object-fit: contain;
     align-self: center;
 }
 </style>
