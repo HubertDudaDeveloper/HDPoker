@@ -1,201 +1,116 @@
 <template>
     <div class="container">
         <div class="room-column">
-        <h1>Poker</h1>
-        <p class="room">Pokój: <strong>{{ props.room.name }}</strong> <i class="bi-journal" @click="handleChangeRoom"/></p>
-        <textarea v-if="false" v-model="cards" placeholder="Punkty" class="glass"/>
-        <div class="cards">
-            <span v-for="(card, index) in cards" class="card glass" @click="() => handleClick(card)">
-                {{ card }}
-            </span>
-        </div>
-        <div class="summary">
-            <template v-if="props.room.revealed">
-                Średnia punktów: <strong>{{ summary }}</strong>
-            </template>
-            <template v-else>
-                Średnia punktów: ?
-            </template>
-        </div>
-        <div class="tasks">
-            <div class="tasks-header">
-                <h2>Zadania</h2>
-                <button class="button" @click="handleAddTask">Dodaj nowe</button>
-            </div>
-            <div class="tabs-wrapper">
-                <div class="tab" :class="{ 'glass': tasksTab === 'active' }" @click="handleTab">
-                    Aktywne
-                </div>
-                <div class="tab" :class="{ 'glass': tasksTab === 'finished' }" @click="handleTab">
-                    Zakończone
+            <h1>Poker</h1>
+            
+            <p class="room">
+                Pokój: <strong>{{ roomState.room.name }}</strong> <i class="bi-journal" @click="handleChangeRoom"/>
+            </p>
+
+            <div v-if="isChangeingRoom" class="edit-cards">
+                <div class="form-wrapper">
+                    Edytuj karty:
+                    <textarea type="text" v-model="cards" />
+                    <button @click="handleEditCards">Zapisz</button>
                 </div>
             </div>
-            <div class="new-task" v-if="isNewTask && tasksTab === 'active'">
-                <input v-model="newTask.name" placeholder="Nazwa zadania"/>
-                <input v-model="newTask.link" placeholder="Link do zadania"/>
-                <button @click="handleSendNewTask" class="bi-plus"/>
-            </div>
-            <div v-for="(task, index) in tasks" class="task glass" :key="task">
-                <p>{{ task.name }}</p>
-                <a :href="task.link">{{ task.link }}</a>
-                <p>{{ task.points }}</p>
-            </div>
+            
+            <Cards/>
+            
+            <Tasks/>
+            
         </div> 
-    </div>
-    <div class="users-column">
+        <div class="users-column">
         <div class="action-container">
             <button class="btn" @click="handleShow">Odkryj</button>
             <button class="btn" @click="handleReset">Resetuj</button>
             <button class="btn" @click="handleFinish">Zakończ</button>
             <button class="btn" @click="handleLeave">Wyjdź z pokoju</button>
         </div>
+
         <h2>Gracze:</h2>
-        <div class="users">
-            <p v-for="(user, index) in users" class="user glass" :key="`${user.name} ${index}`">
-                <img class="user-image" :src="userImage(user)" height="50" width="50"/>
-                {{ user.name }}: 
-                <template v-if="user.points">
-                    <template v-if="props.room.revealed">
-                        {{ user.points }}
-                    </template>
-                    <template v-else>
-                        Gotowy
-                    </template>
-                </template>
-            </p>
-        </div>
+        <Users/>
+        
     </div>
     </div>
 </template>
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { Room, User, Task } from '@/pages/index.vue'
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useTasksStore } from '@/stores/TasksStore'
+import { useCardsStore } from '@/stores/CardsStore'
+import { useRoomStore } from '@/stores/RoomStore'
+import { useUsersStore } from '@/stores/UsersStore'
+import { usePokerStore } from '@/stores/PokerStore'
+import type { Task } from '@/types/PokerTypes'
 
-const props = defineProps(['users', 'room', 'me', 'ws'])
+const { summary } = storeToRefs(useCardsStore())
+const { state: tasksState, activeTasks, finishedTasks } = storeToRefs(useTasksStore())
 
-const points: Ref<string | number> = ref('')
+const roomStore = useRoomStore()
+const { state: roomState } = storeToRefs(roomStore)
+
+const pokerStore = usePokerStore()
+const { state: pokerState } = storeToRefs(pokerStore)
+
+const usersStore = useUsersStore()
+const { state: usersState } = storeToRefs(usersStore)
 
 const isChangeingRoom: Ref<boolean> = ref(false)
 
-const activeTasks = computed(() => {
-    if (!props.room?.tasks) {
-        return []
-    }
-    
-    const tasks = JSON.parse(typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(props.room.tasks) : props.room.tasks)
-    return tasks.filter((t: Task) => t.status === 'active').reverse()
-});
+const cards: Ref<string> = ref('')
 
-const finishedTasks = computed(() => {
-    if (!props.room?.tasks) {
-        return []
-    }
-    const tasks = JSON.parse(typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(props.room.tasks) : props.room.tasks)
-    return tasks.filter((t: Task) => t.status === 'finished').reverse()
-});
-
-const tasks = computed(() => tasksTab.value === 'active' ? activeTasks.value : finishedTasks.value)
-
-const isNewTask = ref(false)
-
-const tasksTab = ref('active')
-
-const handleTab = () => {
-    const newValue = tasksTab.value === 'active' ? 'finished' : 'active'
-    tasksTab.value = newValue
-}
-
-const newTask: Ref<Task> = ref({
-    id: '',
-    name: '',
-    link: '',
-    points: 0,
-    status: 'active'
-})
-
-const summary = computed(() => {
-    const points = props.users.map((user: any) => user.points).filter((point: any) => typeof point === 'number') as number[];
-    const sum = points.reduce((acc, point) => acc + point, 0);
-    const votedUsers = props.users.filter((user: any) => typeof user.points === 'number').length;
-    return votedUsers ? sum / votedUsers : 'Brak głosów';
-});
-
-const cards = ref([2, 3, 5, 8, 13, 21, 34, 55, 89, '?']);
-
-const userImage = (user: User) => {
-    return typeof user.image === 'string' && user.image ? user.image : 'https://www.gravatar.com/avatar/?d=mp'
+const handleEditCards = () => {
+    pokerState.value.ws!.send(`${JSON.stringify({ type: 'update', user: usersState.value.me, room: {...roomState.value.room, cards: cards.value.split(' ') }})}`)
+    isChangeingRoom.value = false
 }
 
 const handleShow = async () => {
-    await props.ws.send(`${JSON.stringify({ type: 'reveal', user: props.me, room: props.room })}`);
+    await pokerState.value.ws!.send(`${JSON.stringify({ type: 'reveal', user: usersState.value.me, room: roomState.value.room })}`);
     
-    if (props.room.revealed) {
+    if (roomState.value.room.revealed) {
         return;
     }
 
-    const fTasks = typeof JSON.parse(props.room.tasks) === 'string'
-        ? JSON.parse(JSON.parse(props.room.tasks)).filter((t: Task) => t.status === 'active')
-        : JSON.parse(props.room.tasks).filter((t: Task) => t.status === 'active')
+    const fTasks = typeof tasksState.value.tasks === 'object' ? tasksState.value.tasks.filter((t: Task) => t.status === 'active') : []
  
     if (fTasks.length) {
         fTasks.reverse()[0].points = summary.value;
     }
-    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: fTasks.reverse() }, })}`);
+    await pokerState.value.ws!.send(`${JSON.stringify({ type: 'task', user: usersState.value.me, room: {...roomState.value.room, tasks: fTasks.reverse() }, })}`);
 }
 
 const handleReset = async () => {
-    await props.ws.send(`${JSON.stringify({ type: 'reset', user: props.me, room: props.room })}`);
+    await pokerState.value.ws!.send(`${JSON.stringify({ type: 'reset', user: usersState.value.me, room: roomState.value.room })}`);
 }
 
 const handleLeave = async () => {
-    await props.ws.send(`${JSON.stringify({ type: 'leave', user: props.me, room: props.room })}`);
+    await pokerState.value.ws!.send(`${JSON.stringify({ type: 'leave', user: usersState.value.me, room: roomState.value.room })}`);
 }
 
 const handleFinish = async () => {
-    const oldTasks = typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(JSON.parse(props.room.tasks)) : JSON.parse(props.room.tasks)
+    const oldTasks = tasksState.value.tasks
     const newTask = { ...activeTasks.value.reverse().pop(), status: 'finished' }
-    await props.ws.send(`${JSON.stringify(
+    
+    const filteredTasks = oldTasks.filter((t: Task) => t.id !== newTask.id) as Task[]
+
+    const tasksToSend = filteredTasks.length ? filteredTasks : oldTasks
+
+    await pokerState.value.ws!.send(`${JSON.stringify(
         {
-            type: 'task', user: props.me,
-            room: {...props.room, tasks: [...oldTasks.filter((t: Task) => t.id !== newTask.id), newTask]},
+            type: 'task', user: usersState.value.me,
+            room: {...roomState.value.room, tasks: [...tasksToSend, newTask]},
         }
     )}`)
 }
 
-const handleAddTask = async () => {
-    tasksTab.value = 'active'
-    isNewTask.value = true
-}
-
 const handleChangeRoom = () => {
     isChangeingRoom.value = !isChangeingRoom.value
-}
-
-const handleSendNewTask = async () => {
-    newTask.value.id = (JSON.parse(props.room.tasks).length + 1).toString();
-    newTask.value.status = 'active'
-
-    const oldTasks = typeof JSON.parse(props.room.tasks) === 'string' ? JSON.parse(JSON.parse(props.room.tasks)) : JSON.parse(props.room.tasks)
-
-    await props.ws.send(`${JSON.stringify({ type: 'task', user: props.me, room: {...props.room, tasks: [...oldTasks, newTask.value]}, })}`);
-    isNewTask.value = false;
-}
-
-const handleClick = (card: number | string | undefined) => {
-    if (!card) {
-        return;
-    }
-
-    points.value = card;
-
-    const fUser = props.users.find((item: User)=> item.id === props.me.id)
-    fUser.points = card;
-
-    props.ws.send(`${JSON.stringify({ type: 'vote', user: fUser, room: props.room})}`)
+    cards.value = roomState.value.room.cards!.toString()
 }
 
 onBeforeUnmount(async () => {
-    await props.ws.send(`${JSON.stringify({ type: 'leave', user: props.me, room: props.room })}`)
+    await pokerState.value.ws!.send(`${JSON.stringify({ type: 'leave', user: usersState.value.me, room: roomState.value.room })}`)
 })
 
 </script>
@@ -214,9 +129,9 @@ h1 {
 .container {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     height: 100vh;
     max-width: 1366px;
-    width: 100%;
     gap: 48px;
 }
 
@@ -233,9 +148,13 @@ h1 {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     height: 100vh;
     color: white;
+
+    @media screen and (min-width: 756px) {
+        justify-content: center;
+    }
 
     .action-container {
         display: flex;
@@ -413,6 +332,49 @@ h1 {
         width: 50px;
         height: 100%;
         font-size: 30px;
+    }
+}
+
+.edit-cards {
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+
+    .form-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.19);
+        border-radius: 16px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(8.6px);
+        -webkit-backdrop-filter: blur(8.6px);
+        border: 1px solid rgba(255, 255, 255, 1);
+        
+        textarea {
+            min-width: 300px;
+            min-height: 200px;
+        }
+    }
+
+    &::before {
+        display: flex;
+        justify-content: center;
+        align-self: center;
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
     }
 }
 </style>

@@ -32,23 +32,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import type { User } from '@/pages/index.vue'
+import { ref } from 'vue'
+import type { User, Room } from '@/types/PokerTypes'
+import { useRoomStore } from '@/stores/RoomStore'
+import { usePokerStore } from '@/stores/PokerStore'
+import { storeToRefs } from 'pinia'
 
-const emits = defineEmits(['createRoom', 'joinRoom'])
 const room = ref('')
 const userName = ref('')
 const password = ref('')
 const userImage = ref('https://www.gravatar.com/avatar/?d=mp')
 
+const roomStore = useRoomStore()
+
+const pokerStore = usePokerStore()
+const { state: pokerState } = storeToRefs(pokerStore)
+
 const status = ref('')
 
 const getUser = (): User => {
-    
     const savedUser = JSON.parse(localStorage.getItem('user') ?? '{}')
-
     savedUser.name = userName.value
-
     const isSavedUser = Boolean(Object.values(savedUser).length)
 
     return isSavedUser ? savedUser : { id: 'init', name: userName.value, points: 0 }
@@ -57,8 +61,11 @@ const getUser = (): User => {
 const handleImageChange = (e: Event) => {
     const target = e.target as HTMLInputElement
     const file = target.files?.[0]
+    const isMaxsize = file?.size! > 2000000
 
-    if (file) {
+    file?.size && isMaxsize ? alert('Plik jest za duży! Max 2mb') : null
+
+    if (file && !isMaxsize) {
         const reader = new FileReader()
         reader.onload = (e) => {
             userImage.value = e.target?.result as string
@@ -67,17 +74,24 @@ const handleImageChange = (e: Event) => {
     }
 }
 
-const handleJoinRoom = async () => {
+const checkRoom = async (type: string) => {
     const roomInfo: string = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ type: 'join', room: { name: room.value, password: password.value } })
+        body: JSON.stringify({ type: type, room: { name: room.value, password: password.value } })
     })
+    return roomInfo
+}
 
+const handleJoinRoom = async () => {
+    const roomInfo = await checkRoom('join')
+    
     if (JSON.parse(roomInfo).response) {
-        emits('joinRoom', { name: room.value, password: password.value }, {...getUser(), image: userImage.value})
+        const roomData = { name: room.value, password: password.value } as unknown as Room
+
+        roomStore.handleJoinRoom(roomData, {...getUser(), image: userImage.value}, pokerState.value.ws!)
         console.log('Joining room')
     } else {
         status.value = JSON.parse(roomInfo).message
@@ -86,18 +100,14 @@ const handleJoinRoom = async () => {
 }
 
 const handleCreateRoom = async () => {
-    const roomInfo: string = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ type: 'init', room: { name: room.value, password: password.value } })
-    })
+    const roomInfo = await checkRoom('init')
 
     console.log(JSON.parse(roomInfo))
 
     if (JSON.parse(roomInfo).response) {
-        emits('createRoom', { name: room.value, password: password.value }, {...getUser(), image: userImage.value})
+        const roomData = { name: room.value, password: password.value } as unknown as Room
+        
+        roomStore.handleCreateRoom(roomData, {...getUser(), image: userImage.value}, pokerState.value.ws!)
         console.log('Creating room')
     } else {
         status.value = JSON.parse(roomInfo).message

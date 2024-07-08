@@ -1,11 +1,11 @@
 <template>
     <div>
-        <p class="server" :class="{ 'alive': isAlive, 'dead': !isAlive }">
-            Server: {{ isAlive ? 'Aktywny' : 'Rozłączony' }}
+        <p class="server" :class="{ 'alive': pokerState.isAlive, 'dead': !pokerState.isAlive }">
+            Server: {{ pokerState.isAlive ? 'Aktywny' : 'Rozłączony' }}
         </p>
         <template v-if="!isLoading">
-            <StartView v-if="!isAuthorised" @createRoom="handleCreateRoom" @joinRoom="handleJoinRoom"/>
-            <RoomView v-else :users="users" :room="room" :me="me" :ws="ws"/>
+            <StartView v-if="!loginState.isAuthorised"/>
+            <RoomView v-else/>
         </template>
 
         <div class="loader" v-else>
@@ -15,126 +15,29 @@
 </template>
 
 <script setup lang="ts">
-const isAuthorised = ref(false);
+import { storeToRefs } from 'pinia'
+import { useUsersStore } from '@/stores/UsersStore'
+import { useRoomStore } from '@/stores/RoomStore'
+import { usePokerStore } from '@/stores/PokerStore'
+import { useLoginStore } from '@/stores/LoginStore'
+import type { extWebSocket } from '@/types/PokerTypes'
+import { MessageType } from '@/types/PokerTypes'
 
-const isAlive = ref(true);
+const pokerStore = usePokerStore()
+const { state: pokerState } = storeToRefs(pokerStore)
 
-const isJsonString = (str: string) => {
-  try {
-      JSON.parse(str);
-  } catch (e) {
-      return false;
-  }
-  return true;
-}
+const usersStore = useUsersStore()
+const { state: usersState } = storeToRefs(usersStore)
 
-interface extWebSocket extends WebSocket {
-    me: User;
-    room: Room;
-}
+const roomStore = useRoomStore()
+const { state: roomState } = storeToRefs(roomStore)
+
+const loginStore = useLoginStore()
+const { state: loginState } = storeToRefs(loginStore)
 
 let ws: extWebSocket
 
-enum MessageType {
-    INIT = 'init', //stwórz pokój
-    VOTE = 'vote', //zagłosuj w pokoju
-    RESET = 'reset', //zresetuj głosy w pokoju
-    JOIN = 'join', //dołącz do pokoju
-    LEAVE = 'leave', //opuść pokój
-    MESSAGE = 'message', //wyslij wiadomość w pokoju
-    TASK = 'task', // ustaw/usuń/edytuj task w pokoju
-    REVEAL = 'reveal', // odkryj głosy w pokoju
-    UPDATE = 'update', // zaktualizuj pokój
-    ERROR = 'error', // zaktualizuj pokój
-}
-
-export interface User {
-    id: string;
-    name: string;
-    image: string;
-    points: number | string;
-}
-
-export interface Room {
-    id: string;
-    name: string;
-    points: number | string;
-    password: string;
-    users: User[];
-    revealed: boolean;
-    tasks: string;
-    votes: [];
-    messages: [];
-}
-
-export interface Task {
-    id: string;
-    name: string;
-    link: string;
-    points: number;
-    status: string;
-}
-
-const users: Ref<User[]> = ref([])
-
-const room: Ref<Room | any> = ref({})
-
-const me: Ref<User | any> = ref({})
-
 const isLoading = ref(true)
-
-const handleCreateRoom = (room: Room, user: User) => {
-
-    const payload = {
-        type: MessageType.INIT,
-        room: room,
-        user: user,
-    }
-
-    ws.send(JSON.stringify(payload))
-}
-
-const handleJoinAfterCreateRoom = (data: Record<string, Room & User>) => {
-    users.value = JSON.parse(data.room.users as unknown as string)
-    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
-    me.value = data.user
-    localStorage.setItem('user', JSON.stringify(data.user))
-    localStorage.setItem('room', JSON.stringify({...data.room, users: JSON.parse(data.room.users as unknown as string)}))
-    isAuthorised.value = true
-}
-
-const handleJoinAfterJoinRoom = (data: Record<string, Room & User>) => {
-    users.value = JSON.parse(data.room.users as unknown as string)
-    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
-    me.value = data.user
-    localStorage.setItem('user', JSON.stringify(data.user))
-    localStorage.setItem('room', JSON.stringify({...data.room, users: JSON.parse(data.room.users as unknown as string)}))
-    isAuthorised.value = true
-}
-
-const handleUpdateRoom = (data: Record<string, Room & User>) => {
-    users.value = JSON.parse(data.room.users as unknown as string)
-    room.value = {...data.room, users: JSON.parse(data.room.users as unknown as string)}
-}
-
-const handleJoinRoom = async (room: Room, user: User) => {
-
-    const payload = {
-        type: MessageType.JOIN,
-        room: room,
-        user: user,
-    }
-
-    ws.send(JSON.stringify(payload))
-    isAuthorised.value = true
-}
-
-const handleLeaveRoom = () => {
-    isAuthorised.value = false
-    room.value = {}
-    users.value = []
-    localStorage.removeItem('room')
-}
 
 const connectToWSS = async () => {
 
@@ -147,12 +50,12 @@ const connectToWSS = async () => {
             setInterval(() => {
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send('pong');
-                    isAlive.value = true;
+                    pokerState.value.isAlive = true;
                 } else {
-                    isAlive.value = false;
+                    pokerState.value.isAlive = false;
                 }
-            }, 5000); // Changed interval to 1 second
-        };
+            }, 5000)
+        }
 
         ws.onmessage = (event) => {
 
@@ -164,43 +67,46 @@ const connectToWSS = async () => {
                     console.log('Received pong');
                     break;
                 default:
-                    if (!isJsonString(event.data)) {
+                    if (!pokerStore.isJsonString(event.data)) {
                         return;
                     }
                     const data = JSON.parse(event.data)
-                    data.type === MessageType.INIT && handleJoinAfterCreateRoom(data);
-                    data.type === MessageType.JOIN && handleJoinAfterJoinRoom(data);
-                    data.type === MessageType.UPDATE && handleUpdateRoom(data);
-                    data.type === MessageType.LEAVE && handleLeaveRoom();
-                    data.type === MessageType.ERROR && data.code === 404 && handleLeaveRoom();
+                    data.type === MessageType.INIT && roomStore.handleJoinAfterCreateRoom(data);
+                    data.type === MessageType.JOIN && roomStore.handleJoinAfterJoinRoom(data);
+                    data.type === MessageType.UPDATE && roomStore.handleUpdateRoom(data);
+                    data.type === MessageType.LEAVE && roomStore.handleLeaveRoom();
+                    data.type === MessageType.ERROR && data.code === 404 && roomStore.handleLeaveRoom();
             }
         }
 
         ws.onclose = () => {
-            console.log('WebSocket connection closed');
-        };
+            console.log('WebSocket connection closed')
+        }
 
         ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
+            console.error('WebSocket error:', error)
+        }
     } catch (err) {
         console.error(err)
+    } finally {
+        pokerState.value.ws = ws
+        isLoading.value = false
     }
 }
 
-onMounted(async () => {
 
-    me.value = JSON.parse(localStorage.getItem('user') ?? '{}')
+onMounted(async () => {
+    isLoading.value = true
+    usersState.value.me = JSON.parse(localStorage.getItem('user') ?? '{}')
 
     const savedRoom = JSON.parse(localStorage.getItem('room') ?? '{}')
-
     const isSavedRoom = Boolean(Object.values(savedRoom).length)
 
     try {
         await connectToWSS()   
         if (isSavedRoom) {
-            room.value = savedRoom        
-            setTimeout(() => handleJoinRoom(savedRoom, me.value), 500)
+            roomState.value.room = savedRoom        
+            setTimeout(() => roomStore.handleJoinRoom(savedRoom, usersState.value.me, ws), 1500)
         }   
     } catch (err) {
         console.error(err)
@@ -212,6 +118,15 @@ onMounted(async () => {
 </script>
 
 <style lang="scss">
+@mixin glass() {
+    background: rgba(255, 255, 255, 0.19);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8.6px);
+    -webkit-backdrop-filter: blur(8.6px);
+    border: 1px solid rgba(255, 255, 255, 1);
+}
+
 .server {
     display: flex;
     width: 100%;
@@ -239,12 +154,8 @@ input {
     border-radius: 5px;
     margin: 10px 0;
     color: white;
-    background: rgba(255, 255, 255, 0.19);
-    border-radius: 16px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(8.6px);
-    -webkit-backdrop-filter: blur(8.6px);
-    border: 1px solid rgba(255, 255, 255, 1);
+    cursor: pointer;
+    @include glass;
 }
 
 input::placeholder {
@@ -256,12 +167,8 @@ button {
     border-radius: 5px;
     margin: 10px 0;
     color: white;
-    background: rgba(255, 255, 255, 0.19);
-    border-radius: 16px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(8.6px);
-    -webkit-backdrop-filter: blur(8.6px);
-    border: 1px solid rgba(255, 255, 255, 1);
+    cursor: pointer;
+    @include glass;
 }
 
 </style>
