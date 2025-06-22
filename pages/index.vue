@@ -136,7 +136,7 @@ onMounted(async () => {
       roomState.value.room = savedRoom;
       setTimeout(() => {
         roomStore.handleJoinRoom(savedRoom, usersState.value.me, ws);
-      }, 1500);
+      }, 0);
     }
   } catch (err) {
     console.error("WebSocket Init Error:", err);
@@ -152,6 +152,10 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss">
+body {
+  padding: 0 16px;
+}
+
 @mixin glass() {
   background: rgba(255, 255, 255, 0.19);
   border-radius: 16px;
@@ -203,5 +207,10 @@ button {
   color: white;
   cursor: pointer;
   @include glass;
+
+  &.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
 }
 </style>

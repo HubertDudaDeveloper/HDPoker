@@ -5,7 +5,6 @@
 
       <p class="room">
         Room: <strong>{{ roomState.room.name }}</strong>
-        <i class="bi-journal" @click="handleChangeRoom" />
       </p>
 
       <div v-if="isChangeingRoom" class="edit-cards">
@@ -22,10 +21,10 @@
     </div>
     <div class="users-column">
       <div class="action-container">
-        <button class="btn" @click="handleShow">Odkryj</button>
-        <button class="btn" @click="handleReset">Resetuj</button>
-        <button class="btn" @click="handleFinish">Zakończ</button>
-        <button class="btn" @click="handleLeave">Wyjdź z pokoju</button>
+        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleShow">Reveal</button>
+        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleReset">Reset</button>
+        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleFinish">Finish</button>
+        <button class="btn" @click="handleLeave">Leave the room</button>
       </div>
 
       <h2>Gracze:</h2>
@@ -136,7 +135,7 @@ const handleLeave = async () => {
 
 const handleFinish = async () => {
   const oldTasks = tasksState.value.tasks;
-  const lastTask = [...activeTasks.value].reverse().pop(); // bez mutacji
+  const lastTask = [...activeTasks.value].reverse().pop();
 
   if (!lastTask) return;
 
@@ -194,7 +193,8 @@ h1 {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  height: 100vh;
+  justify-content: center;
+  min-height: calc(100vh - 100px);
   max-width: 1366px;
   gap: 48px;
 }
@@ -204,7 +204,6 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
   color: white;
 }
 
@@ -213,7 +212,6 @@ h1 {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  height: 100vh;
   color: white;
 
   @media screen and (min-width: 756px) {
@@ -281,7 +279,7 @@ h1 {
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
-  width: calc($card-width * 5 + 40px);
+  max-width: calc($card-width * 5 + 40px);
 }
 
 .card {
@@ -293,6 +291,11 @@ h1 {
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &.disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
 }
 

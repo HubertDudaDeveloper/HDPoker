@@ -23,7 +23,7 @@
     <div class="new-task" v-if="isNewTask && tasksTab === 'active'">
       <input v-model="newTask.name" placeholder="Task name" />
       <input v-model="newTask.link" placeholder="Task link" />
-      <button @click="handleSendNewTask" class="bi-plus" />
+      <button @click="handleSendNewTask" :class="{'disabled': !newTask.name || !newTask.link}" class="bi-plus" />
     </div>
     <div
       v-for="(task, index) in tasks"
@@ -69,6 +69,7 @@ const handleSendNewTask = async () => {
   const taskIds = taskState.value.tasks.map(
     (t: Task) => t.id
   ) as unknown as number[];
+  
   let maxId = taskIds.length ? Math.max(...taskIds) : 0;
 
   if (maxId === -Infinity) {
@@ -77,7 +78,6 @@ const handleSendNewTask = async () => {
 
   newTask.value.id = (maxId + 1).toString();
   newTask.value.status = "active";
-  console.log(newTask.value.id);
   const oldTasks = taskState.value.tasks;
 
   await pokerState.value.ws!.send(

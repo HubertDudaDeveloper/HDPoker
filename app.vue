@@ -33,6 +33,10 @@ $font-third: "Bebas Neue", cursive;
 body {
   font-family: 'Roboto', sans-serif;
   background-image: radial-gradient( circle farthest-corner at 10% 20%,  rgba(37,145,251,0.98) 0.1%, rgba(0,7,128,1) 99.8% );
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   color: white;
   display: flex;
   justify-content: center;

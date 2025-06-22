@@ -4,6 +4,7 @@
     <span
       v-for="(card, index) in cardState.cards"
       class="card glass"
+      :class="{'disabled': !activeTasks.length}"
       @click="() => handleClick(card)"
     >
       {{ card }}
@@ -20,8 +21,15 @@ import { useCardsStore } from "@/stores/CardsStore";
 import { useRoomStore } from "@/stores/RoomStore";
 import { useUsersStore } from "@/stores/UsersStore";
 import { usePokerStore } from "@/stores/PokerStore";
+import { useTasksStore } from "@/stores/TasksStore";
 import { storeToRefs } from "pinia";
 import type { User } from "@/types/PokerTypes";
+
+const {
+  state: tasksState,
+  activeTasks,
+  finishedTasks,
+} = storeToRefs(useTasksStore());
 
 const cardStore = useCardsStore();
 const { state: cardState } = storeToRefs(cardStore);
