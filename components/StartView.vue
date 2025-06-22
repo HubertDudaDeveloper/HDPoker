@@ -3,21 +3,21 @@
         <form class="data-container">
             <img class="user-image" :src="userImage" height="100px" width="100px"/>
             <label for="room">
-                Wpisz nazwę pokoju
+                Enter room name
             </label>
-            <input id="room" v-model="room" placeholder="Poker room"/>
+            <input id="room" v-model="room" placeholder="Room name..."/>
             <label for="user">
-                Wpisz swoją nazwę
+                Enter your name
             </label>
-            <input id="user" autocomplete="username" v-model="userName" placeholder="Jan Kowalski"/>
+            <input id="user" autocomplete="username" v-model="userName" placeholder="User name..."/>
             <label for="image">
-                Dodaj obrazek!
+                Add an image!
             </label>
             <input id="image" type="file" @change="handleImageChange" accept="image/png, image/gif, image/jpeg"/>
             <label for="password">
-                Hasło pokoju (opcjonalne)
+                Room password (optional)
             </label>
-            <input id="password" autocomplete="current-password" v-model="password" type="password" placeholder="Super tajne hasło"/>
+            <input id="password" autocomplete="current-password" v-model="password" type="password" placeholder="Secret..."/>
         </form>
 
         <div v-if="status">
@@ -25,8 +25,8 @@
         </div>
         
         <div class="action-wrapper">
-            <button @click="handleJoinRoom">Dołącz do pokoju</button>
-            <button @click="handleCreateRoom">Utwórz pokój</button>
+            <button @click="handleJoinRoom">Join the room</button>
+            <button @click="handleCreateRoom">Create a room</button>
         </div>
     </div>
 </template>
@@ -55,7 +55,7 @@ const getUser = (): User => {
     savedUser.name = userName.value
     const isSavedUser = Boolean(Object.values(savedUser).length)
 
-    return isSavedUser ? savedUser : { id: 'init', name: userName.value, points: 0 }
+    return isSavedUser ? savedUser : { id: 'init', name: userName.value, points: 0, image: '' }
 }
 
 const handleImageChange = (e: Event) => {
@@ -75,7 +75,7 @@ const handleImageChange = (e: Event) => {
 }
 
 const checkRoom = async (type: string) => {
-    const roomInfo: string = await $fetch('https://ogarniamdiete.pl:8443/room-info', {
+    const roomInfo: string = await $fetch('http://localhost:3001/room-info', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
