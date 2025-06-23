@@ -3,16 +3,22 @@ export default defineNuxtConfig({
   devtools: {
     enabled: true,
     timeline: {
-      enabled: true
-    }
+      enabled: true,
+    },
   },
   app: {
-    baseURL: '/poker/',
+    baseURL: "/poker/",
   },
-  modules: ['@pinia/nuxt'],
+  router: {
+    base: '/poker/'
+  },
+  modules: ["@pinia/nuxt"],
   nitro: {
     experimental: {
-      websocket: true
-    }
-  }
-})
+      websocket: true,
+    },
+    preset: "static",
+  },
+  ssr: false,
+  target: 'static'
+});

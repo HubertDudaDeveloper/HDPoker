@@ -80,7 +80,7 @@ const handleWSMessage = (event: MessageEvent) => {
 const connectToWSS = async () => {
   return new Promise<void>((resolve, reject) => {
     try {
-      ws = new WebSocket("ws://localhost:3001") as extWebSocket;
+      ws = new WebSocket("wss://hd-dev.pl/poker/ws") as extWebSocket;
 
       ws.onopen = () => {
         pokerState.value.isAlive = true;
@@ -194,6 +194,10 @@ input {
   color: white;
   cursor: pointer;
   @include glass;
+
+  &.is-error {
+    border-color: red;
+  }
 }
 
 input::placeholder {

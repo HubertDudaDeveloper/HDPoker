@@ -21,14 +21,41 @@
     </div>
     <div class="users-column">
       <div class="action-container">
-        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleShow">Reveal</button>
-        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleReset">Reset</button>
-        <button class="btn" :class="{'disabled': !activeTasks.length}" @click="handleFinish">Finish</button>
+        <button
+          class="btn"
+          :class="{ disabled: !activeTasks.length }"
+          @click="handleShow"
+        >
+          Reveal
+        </button>
+        <button
+          class="btn"
+          :class="{ disabled: !activeTasks.length }"
+          @click="handleReset"
+        >
+          Reset
+        </button>
+        <button
+          class="btn"
+          :class="{ disabled: !activeTasks.length }"
+          @click="handleFinish"
+        >
+          Finish
+        </button>
         <button class="btn" @click="handleLeave">Leave the room</button>
       </div>
 
-      <h2>Gracze:</h2>
-      <Users />
+      <h2>Players:</h2>
+      <div class="users">
+        <UserItem
+          v-for="(user, index) in usersState.users.sort((a, b) =>
+            a.name.localeCompare(b.name)
+          )"
+          :user="user"
+          :room="roomState.room"
+          :key="`${user.name} ${index}`"
+        />
+      </div>
     </div>
   </div>
 </template>
